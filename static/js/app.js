@@ -12,14 +12,35 @@ const statusDiv = document.getElementById('statusMsg');
 
 let currentVideoFormats = [];
 let currentAudioFormats = [];
-let selectedVideoFormat = 'best';
-let selectedAudioFormat = 'best';
+let selectedVideoFormat = null;
+let selectedAudioFormat = null;
 let currentUrl = '';
+
+// Invidious instances - public YouTube alternative APIs
+const INVIDIOUS_INSTANCES = [
+    'https://vid.puffyan.us',
+    'https://inv.riverside.rocks',
+    'https://iv.datura.network',
+    'https://yt.artemislena.eu',
+    'https://invidious.fdn.fr',
+];
 
 function setStatus(msg, type) {
     statusDiv.textContent = msg;
     statusDiv.className = 'status-msg ' + (type || '');
     statusDiv.style.display = type ? 'block' : 'none';
+}
+
+function extractVideoId(url) {
+    const patterns = [
+        /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([A-Za-z0-9_-]{11})/,
+        /youtube\.com\/embed\/([A-Za-z0-9_-]{11})/,
+    ];
+    for (const p of patterns) {
+        const match = url.match(p);
+        if (match) return match[1];
+    }
+    return null;
 }
 
 function formatDuration(seconds) {
@@ -43,10 +64,35 @@ function switchTab(tab) {
     document.getElementById(tab + 'Tab').classList.add('active');
 }
 
+async function tryInstances(path) {
+    let lastError;
+    for (const base of INVIDIOUS_INSTANCES) {
+        try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 8000);
+            const response = await fetch(base + path, { signal: controller.signal });
+            clearTimeout(timeout);
+            if (response.ok) {
+                return await response.json();
+            }
+        } catch (e) {
+            lastError = e;
+            continue;
+        }
+    }
+    throw lastError || new Error('All Invidious instances failed');
+}
+
 async function fetchVideoInfo() {
     const url = urlInput.value.trim();
     if (!url) {
         setStatus('נא להכניס קישור ל-YouTube', 'error');
+        return;
+    }
+
+    const videoId = extractVideoId(url);
+    if (!videoId) {
+        setStatus('קישור לא תקין. נא להכניס קישור YouTube תקין', 'error');
         return;
     }
 
@@ -56,35 +102,83 @@ async function fetchVideoInfo() {
     videoPreview.classList.remove('active');
 
     try {
-        const response = await fetch('/api/info', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url })
-        });
+        const data = await tryInstances(`/api/v1/videos/${videoId}`);
 
-        const data = await response.json();
+        previewThumb.src = data.videoThumbnails?.find(t => t.quality === 'maxres')?.url
+            || data.videoThumbnails?.[0]?.url
+            || '';
+        previewTitle.textContent = data.title || 'סרטון ללא כותרת';
 
-        if (response.ok) {
-            previewThumb.src = data.thumbnail || '';
-            previewTitle.textContent = data.title || 'סרטון ללא כותרת';
-            
-            const durationStr = data.duration ? `משך: ${formatDuration(data.duration)}` : '';
-            const uploaderStr = data.uploader ? `ערוץ: ${data.uploader}` : '';
-            previewMeta.textContent = [uploaderStr, durationStr].filter(Boolean).join(' | ');
+        const durationStr = data.lengthSeconds ? `משך: ${formatDuration(data.lengthSeconds)}` : '';
+        const uploaderStr = data.author ? `ערוץ: ${data.author}` : '';
+        previewMeta.textContent = [uploaderStr, durationStr].filter(Boolean).join(' | ');
 
-            currentVideoFormats = data.video_formats || [];
-            currentAudioFormats = data.audio_formats || [];
-            renderVideoButtons();
-            renderAudioButtons();
-            
-            videoPreview.classList.add('active');
-            setStatus('', '');
-        } else {
-            setStatus(data.error || 'שגיאה בטעינת מידע', 'error');
+        const videoFormats = [];
+        const seenQualities = new Set();
+
+        for (const fmt of (data.adaptiveFormats || [])) {
+            if (fmt.type?.startsWith('video/')) {
+                const quality = fmt.qualityLabel || fmt.resolution || 'unknown';
+                if (seenQualities.has(quality)) continue;
+                seenQualities.add(quality);
+                videoFormats.push({
+                    format_id: fmt.itag || fmt.url,
+                    quality: quality,
+                    resolution: fmt.resolution || quality,
+                    url: fmt.url,
+                    has_audio: false,
+                    ext: fmt.container || 'mp4',
+                });
+            }
         }
+
+        const audioFormats = [];
+        const seenAudio = new Set();
+
+        for (const fmt of (data.adaptiveFormats || [])) {
+            if (fmt.type?.startsWith('audio/')) {
+                const abr = fmt.bitrate ? Math.round(fmt.bitrate / 1000) : 0;
+                const key = `${fmt.container}_${abr}`;
+                if (seenAudio.has(key)) continue;
+                seenAudio.add(key);
+                audioFormats.push({
+                    format_id: fmt.itag || fmt.url,
+                    quality: abr ? `${abr}kbps` : 'אודיו',
+                    resolution: 'audio only',
+                    url: fmt.url,
+                    has_audio: true,
+                    ext: fmt.container || 'm4a',
+                });
+            }
+        }
+
+        for (const fmt of (data.formatStreams || [])) {
+            if (fmt.type?.startsWith('video/')) {
+                const quality = fmt.qualityLabel || fmt.resolution || 'unknown';
+                if (!seenQualities.has(quality)) {
+                    seenQualities.add(quality);
+                    videoFormats.push({
+                        format_id: fmt.itag || fmt.url,
+                        quality: quality,
+                        resolution: fmt.resolution || quality,
+                        url: fmt.url,
+                        has_audio: true,
+                        ext: fmt.container || 'mp4',
+                    });
+                }
+            }
+        }
+
+        currentVideoFormats = videoFormats;
+        currentAudioFormats = audioFormats;
+        renderVideoButtons();
+        renderAudioButtons();
+
+        videoPreview.classList.add('active');
+        setStatus('', '');
     } catch (error) {
         console.error(error);
-        setStatus('שגיאת רשת, נסה שוב', 'error');
+        setStatus('שגיאה בטעינת מידע. נסה קישור אחר או רענן את הדף.', 'error');
     } finally {
         fetchBtn.disabled = false;
     }
@@ -92,57 +186,54 @@ async function fetchVideoInfo() {
 
 function renderVideoButtons() {
     videoQualityGrid.innerHTML = '';
-    
+
     for (const fmt of currentVideoFormats) {
         const btn = document.createElement('button');
         btn.className = 'quality-btn';
         btn.textContent = fmt.quality;
-        btn.dataset.formatId = fmt.format_id;
-        
-        const sizeStr = fmt.filesize ? ` (${formatBytes(fmt.filesize)})` : '';
-        const audioTag = fmt.has_audio ? '' : ' (וידאו בלבד - ימוזג עם אודיו)';
-        btn.title = `${fmt.resolution}${sizeStr}${audioTag}`;
-        
-        btn.addEventListener('click', () => selectVideoFormat(btn, fmt.format_id));
+        btn.dataset.url = fmt.url;
+
+        const audioTag = fmt.has_audio ? '' : ' (וידאו בלבד)';
+        btn.title = `${fmt.resolution}${audioTag}`;
+
+        btn.addEventListener('click', () => selectVideoFormat(btn, fmt.url));
         videoQualityGrid.appendChild(btn);
     }
 
     if (videoQualityGrid.children.length > 0) {
-        selectVideoFormat(videoQualityGrid.children[0], videoQualityGrid.children[0].dataset.formatId);
+        selectVideoFormat(videoQualityGrid.children[0], videoQualityGrid.children[0].dataset.url);
     }
 }
 
 function renderAudioButtons() {
     audioQualityGrid.innerHTML = '';
-    
+
     for (const fmt of currentAudioFormats) {
         const btn = document.createElement('button');
         btn.className = 'quality-btn';
         btn.textContent = fmt.quality;
-        btn.dataset.formatId = fmt.format_id;
-        
-        const sizeStr = fmt.filesize ? ` (${formatBytes(fmt.filesize)})` : '';
-        btn.title = `אודיו ${fmt.ext.toUpperCase()}${sizeStr}`;
-        
-        btn.addEventListener('click', () => selectAudioFormat(btn, fmt.format_id));
+        btn.dataset.url = fmt.url;
+        btn.title = `אודיו ${fmt.ext.toUpperCase()}`;
+
+        btn.addEventListener('click', () => selectAudioFormat(btn, fmt.url));
         audioQualityGrid.appendChild(btn);
     }
 
     if (audioQualityGrid.children.length > 0) {
-        selectAudioFormat(audioQualityGrid.children[0], audioQualityGrid.children[0].dataset.formatId);
+        selectAudioFormat(audioQualityGrid.children[0], audioQualityGrid.children[0].dataset.url);
     }
 }
 
-function selectVideoFormat(btn, formatId) {
-    selectedVideoFormat = formatId;
+function selectVideoFormat(btn, url) {
+    selectedVideoFormat = url;
     for (const child of videoQualityGrid.children) {
         child.classList.remove('selected');
     }
     btn.classList.add('selected');
 }
 
-function selectAudioFormat(btn, formatId) {
-    selectedAudioFormat = formatId;
+function selectAudioFormat(btn, url) {
+    selectedAudioFormat = url;
     for (const child of audioQualityGrid.children) {
         child.classList.remove('selected');
     }
@@ -155,49 +246,29 @@ async function startDownload(type) {
         return;
     }
 
-    const formatId = type === 'audio' ? selectedAudioFormat : selectedVideoFormat;
+    const url = type === 'audio' ? selectedAudioFormat : selectedVideoFormat;
     const btn = type === 'audio' ? downloadAudioBtn : downloadVideoBtn;
-    const action = type === 'audio' ? 'מוריד את האודיו' : 'מוריד את הסרטון';
-    
-    setStatus(`${action}, נא להמתין... זה עשוי לקחת זמן`, 'loading');
+
+    if (!url) {
+        setStatus('לא נבחר פורמט', 'error');
+        return;
+    }
+
+    setStatus('מכין הורדה...', 'loading');
     btn.disabled = true;
 
     try {
-        const response = await fetch('/download', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url: currentUrl, format_id: formatId, type })
-        });
-
-        if (response.ok) {
-            const blob = await response.blob();
-            const downloadUrl = globalThis.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = downloadUrl;
-            
-            const disposition = response.headers.get('Content-Disposition');
-            let filename = type === 'audio' ? 'audio.mp3' : 'video.mp4';
-            if (disposition?.includes('attachment')) {
-                const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
-                const matches = filenameRegex.exec(disposition);
-                if (matches?.[1]) { 
-                    filename = matches[1].replace(/['"]/g, '');
-                }
-            }
-            
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            globalThis.URL.revokeObjectURL(downloadUrl);
-            a.remove();
-            setStatus('ההורדה החלה בהצלחה!', 'success');
-        } else {
-            const data = await response.json();
-            setStatus(data.error || 'שגיאה בהורדה', 'error');
-        }
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = '';
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setStatus('ההורדה החלה! לחץ "שמור" בדפדפן', 'success');
     } catch (error) {
         console.error(error);
-        setStatus('שגיאת רשת, נסה שוב', 'error');
+        setStatus('שגיאה בהורדה', 'error');
     } finally {
         btn.disabled = false;
     }
