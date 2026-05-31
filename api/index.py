@@ -16,28 +16,41 @@ class handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         """Handle GET requests for static files and pages"""
-        path = self.path
+        try:
+            path = self.path
 
-        if path.startswith('/static/'):
-            self._serve_static(path)
-            return
+            if path.startswith('/static/'):
+                self._serve_static(path)
+                return
 
-        if path in ('/', '/index.html', '/blog', '/blog.html'):
-            self._serve_html(path)
-            return
+            if path in ('/', '/index.html', '/blog', '/blog.html'):
+                self._serve_html(path)
+                return
 
-        self._serve_html('/index.html')
+            self._serve_html('/index.html')
+        except Exception as e:
+            self._send_error(str(e))
+
+    def _send_error(self, msg):
+        """Send error response"""
+        self.send_response(500)
+        self.send_header('Content-Type', 'text/plain; charset=utf-8')
+        self.end_headers()
+        self.wfile.write(f'Error: {msg}'.encode('utf-8'))
 
     def do_POST(self):
         """Handle POST requests for API endpoints"""
-        path = self.path
+        try:
+            path = self.path
 
-        if path == '/api/info':
-            self._handle_info()
-        elif path == '/download':
-            self._handle_download()
-        else:
-            self._send_json({'error': 'Not found'}, 404)
+            if path == '/api/info':
+                self._handle_info()
+            elif path == '/download':
+                self._handle_download()
+            else:
+                self._send_json({'error': 'Not found'}, 404)
+        except Exception as e:
+            self._send_error(str(e))
 
     def _serve_static(self, path):
         """Serve CSS/JS static files"""
