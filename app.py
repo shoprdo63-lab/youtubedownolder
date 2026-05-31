@@ -427,10 +427,9 @@ def fetch_from_invidious(video_id):
                 headers={
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                     'Accept': 'application/json',
-                },
-                timeout=15
+                }
             )
-            with urllib.request.urlopen(req) as response:
+            with urllib.request.urlopen(req, timeout=15) as response:
                 return json.loads(response.read().decode('utf-8'))
         except Exception as e:
             last_error = e
