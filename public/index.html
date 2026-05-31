@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}מוריד סרטוני YouTube - הורדת סרטונים באיכות HD, 4K, 8K{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <h1>הורד סרטוני YouTube<br>באיכות מקסימלית</h1>
+    <p class="subtitle">הכלי המהיר, הבטוח והחינמי ביותר להורדת סרטונים מ-YouTube בכל האיכויות: HD, 4K ו-8K</p>
+    
+    <div class="downloader-card">
+        <div class="input-row">
+            <input type="text" id="urlInput" class="url-input" placeholder="הדבק כאן קישור ל-YouTube..." required>
+            <button id="fetchBtn" class="btn-primary" onclick="fetchVideoInfo()">חפש סרטון</button>
+        </div>
+        
+        <div id="videoPreview" class="video-preview">
+            <div class="preview-header">
+                <img id="previewThumb" class="preview-thumb" src="" alt="">
+                <div class="preview-info">
+                    <h3 id="previewTitle">כותרת הסרטון</h3>
+                    <div id="previewMeta" class="preview-meta"></div>
+                </div>
+            </div>
+            
+            <div class="format-tabs">
+                <button class="tab-btn active" data-tab="video" onclick="switchTab('video')">&#127909; וידאו</button>
+                <button class="tab-btn" data-tab="audio" onclick="switchTab('audio')">&#127911; אודיו בלבד</button>
+            </div>
+            
+            <div id="videoTab" class="tab-content active">
+                <div class="quality-section">
+                    <div class="section-label" id="videoLabel">בחר איכות וידאו:</div>
+                    <div id="videoQualityGrid" class="quality-grid" role="radiogroup" aria-labelledby="videoLabel"></div>
+                </div>
+                <button id="downloadVideoBtn" class="btn-primary" style="width:100%;margin-top:1rem;justify-content:center;" onclick="startDownload('video')">&#11015; הורד סרטון MP4</button>
+            </div>
+            
+            <div id="audioTab" class="tab-content">
+                <div class="quality-section">
+                    <div class="section-label" id="audioLabel">בחר איכות אודיו:</div>
+                    <div id="audioQualityGrid" class="quality-grid" role="radiogroup" aria-labelledby="audioLabel"></div>
+                </div>
+                <button id="downloadAudioBtn" class="btn-primary" style="width:100%;margin-top:1rem;justify-content:center;" onclick="startDownload('audio')">&#11015; הורד MP3</button>
+            </div>
+        </div>
+        
+        <div id="statusMsg" class="status-msg"></div>
+    </div>
+</section>
+
+<section class="features-section">
+    <h2>למה לבחור בנו?</h2>
+    <div class="features-grid">
+        <div class="feature-card">
+            <div class="feature-icon">4K</div>
+            <h3>איכות מקסימלית</h3>
+            <p>הורד סרטונים באיכות 8K, 4K, 1440p, 1080p וכל איכות אחרת הזמינה ב-YouTube</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">MP4</div>
+            <h3>פורמט אוניברסלי</h3>
+            <p>כל הסרטונים מורדים בפורמט MP4 המוכר והתואם לכל מכשיר ונגן</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">&#9889;</div>
+            <h3>מהיר וחינמי</h3>
+            <p>אין צורך בהרשמה, אין פרסומות, והשירות כולו חינמי לחלוטין</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">&#128274;</div>
+            <h3>בטוח ומאובטח</h3>
+            <p>אין צורך בהתקנת תוכנות חיצוניות. הכל פועל ישירות מהדפדפן</p>
+        </div>
+    </div>
+</section>
+{% endblock %}
