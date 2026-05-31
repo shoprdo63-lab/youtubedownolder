@@ -3,16 +3,12 @@
   "name": "youtube-downolder",
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "/api/index.py"
-    },
-    {
-      "src": "/blog",
-      "dest": "/blog.html"
+      "src": "/api/test",
+      "dest": "/api/test.py"
     },
     {
       "src": "/(.*)",
-      "dest": "/$1"
+      "dest": "/api/index.py"
     }
   ]
 }
