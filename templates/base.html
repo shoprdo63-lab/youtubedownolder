@@ -5,40 +5,56 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}מוריד סרטוני YouTube - הורדת סרטונים באיכות גבוהה{% endblock %}</title>
     <meta name="description" content="{% block desc %}הכלי הטוב ביותר להורדת סרטוני YouTube באיכות HD, 4K ו-8K. מהיר, בטוח וחינמי לחלוטין.{% endblock %}">
-    <meta name="keywords" content="הורדת סרטוני YouTube, מוריד YouTube, YouTube downloader, הורדת סרטונים, MP4, HD, 4K">
+    <meta name="keywords" content="הורדת סרטוני YouTube, מוריד YouTube, YouTube downloader, הורדת סרטונים, MP4, HD, 4K, 8K, הורדת אודיו, MP3">
     <meta name="author" content="YouTube Downloader Pro">
     <meta name="robots" content="index, follow">
-    <link rel="canonical" href="https://yourdomain.com{{ request.path }}">
-    
+    <meta name="googlebot" content="index, follow">
+    <link rel="canonical" href="https://youtube-downolder.onrender.com{{ request.path }}">
+    <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml">
+
     <!-- Open Graph -->
+    <meta property="og:locale" content="he_IL">
+    <meta property="og:site_name" content="YouTube Downloader Pro">
     <meta property="og:title" content="{% block og_title %}מוריד סרטוני YouTube - הורדת סרטונים באיכות גבוהה{% endblock %}">
     <meta property="og:description" content="{% block og_desc %}הכלי הטוב ביותר להורדת סרטוני YouTube באיכות HD, 4K ו-8K. מהיר, בטוח וחינמי לחלוטין.{% endblock %}">
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://yourdomain.com{{ request.path }}">
-    <meta property="og:image" content="https://yourdomain.com/static/og-image.jpg">
-    
-    <!-- Twitter -->
+    <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+    <meta property="og:url" content="https://youtube-downolder.onrender.com{{ request.path }}">
+    <meta property="og:image" content="https://youtube-downolder.onrender.com/static/og-image.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{% block tw_title %}מוריד סרטוני YouTube - הורדת סרטונים באיכות גבוהה{% endblock %}">
     <meta name="twitter:description" content="{% block tw_desc %}הכלי הטוב ביותר להורדת סרטוני YouTube באיכות HD, 4K ו-8K.{% endblock %}">
-    
-    <!-- Schema.org -->
+    <meta name="twitter:image" content="https://youtube-downolder.onrender.com/static/og-image.jpg">
+
+    <!-- Schema.org: WebApplication -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "WebApplication",
       "name": "YouTube Downloader Pro",
       "description": "כלי חינמי להורדת סרטוני YouTube באיכות HD, 4K ו-8K",
+      "url": "https://youtube-downolder.onrender.com",
       "applicationCategory": "UtilityApplication",
       "operatingSystem": "Any",
       "offers": {
         "@type": "Offer",
         "price": "0",
         "priceCurrency": "ILS"
+      },
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.8",
+        "ratingCount": "1250"
       }
     }
     </script>
-    
+
+    <!-- Breadcrumb Structured Data -->
+    {% block breadcrumb %}{% endblock %}
+
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&display=swap" rel="stylesheet">

@@ -439,6 +439,48 @@ def download_video():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/robots.txt')
+def robots():
+    return """User-agent: *
+Allow: /
+Disallow: /downloads/
+Sitemap: https://youtube-downolder.onrender.com/sitemap.xml
+""", 200, {'Content-Type': 'text/plain; charset=utf-8'}
+
+
+@app.route('/sitemap.xml')
+def sitemap():
+    base_url = 'https://youtube-downolder.onrender.com'
+    today = datetime.now().strftime('%Y-%m-%d')
+
+    urls = [
+        {'loc': f'{base_url}/', 'priority': '1.0', 'changefreq': 'weekly'},
+        {'loc': f'{base_url}/blog', 'priority': '0.9', 'changefreq': 'weekly'},
+    ]
+
+    for slug in ARTICLES.keys():
+        urls.append({
+            'loc': f'{base_url}/blog/{slug}',
+            'priority': '0.8',
+            'changefreq': 'monthly'
+        })
+
+    xml = ['<?xml version="1.0" encoding="UTF-8"?>']
+    xml.append('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">')
+
+    for u in urls:
+        xml.append('  <url>')
+        xml.append(f'    <loc>{u["loc"]}</loc>')
+        xml.append(f'    <lastmod>{today}</lastmod>')
+        xml.append(f'    <changefreq>{u["changefreq"]}</changefreq>')
+        xml.append(f'    <priority>{u["priority"]}</priority>')
+        xml.append('  </url>')
+
+    xml.append('</urlset>')
+
+    return '\n'.join(xml), 200, {'Content-Type': 'application/xml; charset=utf-8'}
+
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(debug=True, host='0.0.0.0', port=port)
