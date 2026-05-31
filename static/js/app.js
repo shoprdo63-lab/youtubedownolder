@@ -16,38 +16,10 @@ let selectedVideoFormat = null;
 let selectedAudioFormat = null;
 let currentUrl = '';
 
-// Invidious instances - public YouTube alternative APIs
-const INVIDIOUS_INSTANCES = [
-    'https://vid.puffyan.us',
-    'https://inv.riverside.rocks',
-    'https://iv.datura.network',
-    'https://yt.artemislena.eu',
-    'https://invidious.fdn.fr',
-    'https://y.com.sb',
-    'https://invidious.privacydev.net',
-    'https://iv.nboeck.de',
-    'https://iv.melmac.space',
-    'https://invidious.slipfox.xyz',
-    'https://iv.datura.network',
-    'https://iv.melmac.space',
-];
-
 function setStatus(msg, type) {
     statusDiv.textContent = msg;
     statusDiv.className = 'status-msg ' + (type || '');
     statusDiv.style.display = type ? 'block' : 'none';
-}
-
-function extractVideoId(url) {
-    const patterns = [
-        /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([A-Za-z0-9_-]{11})/,
-        /youtube\.com\/embed\/([A-Za-z0-9_-]{11})/,
-    ];
-    for (const p of patterns) {
-        const match = url.match(p);
-        if (match) return match[1];
-    }
-    return null;
 }
 
 function formatDuration(seconds) {
@@ -71,47 +43,10 @@ function switchTab(tab) {
     document.getElementById(tab + 'Tab').classList.add('active');
 }
 
-async function tryInstances(path) {
-    let lastError;
-    let failedInstances = [];
-
-    for (const base of INVIDIOUS_INSTANCES) {
-        try {
-            console.log(`Trying ${base}...`);
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 15000);
-            const response = await fetch(base + path, { signal: controller.signal });
-            clearTimeout(timeout);
-
-            if (response.ok) {
-                console.log(`SUCCESS: ${base}`);
-                return await response.json();
-            } else {
-                console.warn(`HTTP ${response.status} from ${base}`);
-                failedInstances.push(`${base} (HTTP ${response.status})`);
-            }
-        } catch (e) {
-            console.warn(`Failed ${base}:`, e.message);
-            failedInstances.push(`${base} (${e.message})`);
-            lastError = e;
-            continue;
-        }
-    }
-
-    console.error('All instances failed:', failedInstances);
-    throw new Error(`All Invidious instances failed. Check browser console (F12) for details.`);
-}
-
 async function fetchVideoInfo() {
     const url = urlInput.value.trim();
     if (!url) {
         setStatus('נא להכניס קישור ל-YouTube', 'error');
-        return;
-    }
-
-    const videoId = extractVideoId(url);
-    if (!videoId) {
-        setStatus('קישור לא תקין. נא להכניס קישור YouTube תקין', 'error');
         return;
     }
 
@@ -121,75 +56,28 @@ async function fetchVideoInfo() {
     videoPreview.classList.remove('active');
 
     try {
-        const data = await tryInstances(`/api/v1/videos/${videoId}`);
+        // Use server proxy to avoid CORS
+        const response = await fetch('/api/proxy/info', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+        });
 
-        previewThumb.src = data.videoThumbnails?.find(t => t.quality === 'maxres')?.url
-            || data.videoThumbnails?.[0]?.url
-            || '';
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Server error');
+        }
+
+        previewThumb.src = data.thumbnail || '';
         previewTitle.textContent = data.title || 'סרטון ללא כותרת';
 
-        const durationStr = data.lengthSeconds ? `משך: ${formatDuration(data.lengthSeconds)}` : '';
-        const uploaderStr = data.author ? `ערוץ: ${data.author}` : '';
+        const durationStr = data.duration ? `משך: ${formatDuration(data.duration)}` : '';
+        const uploaderStr = data.uploader ? `ערוץ: ${data.uploader}` : '';
         previewMeta.textContent = [uploaderStr, durationStr].filter(Boolean).join(' | ');
 
-        const videoFormats = [];
-        const seenQualities = new Set();
-
-        for (const fmt of (data.adaptiveFormats || [])) {
-            if (fmt.type?.startsWith('video/')) {
-                const quality = fmt.qualityLabel || fmt.resolution || 'unknown';
-                if (seenQualities.has(quality)) continue;
-                seenQualities.add(quality);
-                videoFormats.push({
-                    format_id: fmt.itag || fmt.url,
-                    quality: quality,
-                    resolution: fmt.resolution || quality,
-                    url: fmt.url,
-                    has_audio: false,
-                    ext: fmt.container || 'mp4',
-                });
-            }
-        }
-
-        const audioFormats = [];
-        const seenAudio = new Set();
-
-        for (const fmt of (data.adaptiveFormats || [])) {
-            if (fmt.type?.startsWith('audio/')) {
-                const abr = fmt.bitrate ? Math.round(fmt.bitrate / 1000) : 0;
-                const key = `${fmt.container}_${abr}`;
-                if (seenAudio.has(key)) continue;
-                seenAudio.add(key);
-                audioFormats.push({
-                    format_id: fmt.itag || fmt.url,
-                    quality: abr ? `${abr}kbps` : 'אודיו',
-                    resolution: 'audio only',
-                    url: fmt.url,
-                    has_audio: true,
-                    ext: fmt.container || 'm4a',
-                });
-            }
-        }
-
-        for (const fmt of (data.formatStreams || [])) {
-            if (fmt.type?.startsWith('video/')) {
-                const quality = fmt.qualityLabel || fmt.resolution || 'unknown';
-                if (!seenQualities.has(quality)) {
-                    seenQualities.add(quality);
-                    videoFormats.push({
-                        format_id: fmt.itag || fmt.url,
-                        quality: quality,
-                        resolution: fmt.resolution || quality,
-                        url: fmt.url,
-                        has_audio: true,
-                        ext: fmt.container || 'mp4',
-                    });
-                }
-            }
-        }
-
-        currentVideoFormats = videoFormats;
-        currentAudioFormats = audioFormats;
+        currentVideoFormats = data.video_formats || [];
+        currentAudioFormats = data.audio_formats || [];
         renderVideoButtons();
         renderAudioButtons();
 
@@ -197,7 +85,7 @@ async function fetchVideoInfo() {
         setStatus('', '');
     } catch (error) {
         console.error('Full error:', error);
-        setStatus(`שגיאה: ${error.message}. פתח את הקונסול (F12) לפרטים.`, 'error');
+        setStatus(`שגיאה: ${error.message}`, 'error');
     } finally {
         fetchBtn.disabled = false;
     }

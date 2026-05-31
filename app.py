@@ -1,6 +1,9 @@
 import os
 import re
 import shutil
+import urllib.request
+import urllib.error
+import json
 from datetime import datetime
 from flask import Flask, render_template, request, send_file, jsonify
 import yt_dlp
@@ -386,6 +389,133 @@ def article(slug):
     if not article:
         return render_template('blog.html'), 404
     return render_template('article.html', **article)
+
+
+INVIDIOUS_INSTANCES = [
+    'https://vid.puffyan.us',
+    'https://inv.riverside.rocks',
+    'https://iv.datura.network',
+    'https://yt.artemislena.eu',
+    'https://invidious.fdn.fr',
+    'https://y.com.sb',
+    'https://invidious.privacydev.net',
+    'https://iv.nboeck.de',
+    'https://iv.melmac.space',
+    'https://invidious.slipfox.xyz',
+]
+
+
+def extract_video_id(url):
+    patterns = [
+        r'(?:youtube\.com/watch\?v=|youtu\.be/|youtube\.com/shorts/)([A-Za-z0-9_-]{11})',
+        r'youtube\.com/embed/([A-Za-z0-9_-]{11})',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1)
+    return None
+
+
+def fetch_from_invidious(video_id):
+    """Fetch video info from Invidious API (server-side, no CORS issues)"""
+    last_error = None
+    for base in INVIDIOUS_INSTANCES:
+        try:
+            req = urllib.request.Request(
+                f'{base}/api/v1/videos/{video_id}',
+                headers={
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    'Accept': 'application/json',
+                },
+                timeout=15
+            )
+            with urllib.request.urlopen(req) as response:
+                return json.loads(response.read().decode('utf-8'))
+        except Exception as e:
+            last_error = e
+            continue
+    raise last_error or Exception('All Invidious instances failed')
+
+
+@app.route('/api/proxy/info', methods=['POST'])
+def proxy_video_info():
+    """Proxy video info through Invidious (server-side, no CORS)"""
+    data = request.get_json()
+    url = data.get('url', '').strip()
+
+    video_id = extract_video_id(url)
+    if not video_id:
+        return jsonify({'error': 'Invalid YouTube URL'}), 400
+
+    try:
+        invidious_data = fetch_from_invidious(video_id)
+
+        # Parse formats similar to client-side
+        video_formats = []
+        seen_qualities = set()
+
+        for fmt in invidious_data.get('adaptiveFormats', []):
+            if fmt.get('type', '').startswith('video/'):
+                quality = fmt.get('qualityLabel') or fmt.get('resolution') or 'unknown'
+                if quality in seen_qualities:
+                    continue
+                seen_qualities.add(quality)
+                video_formats.append({
+                    'format_id': fmt.get('itag') or fmt.get('url'),
+                    'quality': quality,
+                    'resolution': fmt.get('resolution') or quality,
+                    'url': fmt.get('url'),
+                    'has_audio': False,
+                    'ext': fmt.get('container') or 'mp4',
+                })
+
+        audio_formats = []
+        seen_audio = set()
+
+        for fmt in invidious_data.get('adaptiveFormats', []):
+            if fmt.get('type', '').startswith('audio/'):
+                abr = fmt.get('bitrate', 0)
+                if abr:
+                    abr = round(abr / 1000)
+                key = f"{fmt.get('container', 'm4a')}_{abr}"
+                if key in seen_audio:
+                    continue
+                seen_audio.add(key)
+                audio_formats.append({
+                    'format_id': fmt.get('itag') or fmt.get('url'),
+                    'quality': f"{abr}kbps" if abr else 'אודיו',
+                    'resolution': 'audio only',
+                    'url': fmt.get('url'),
+                    'has_audio': True,
+                    'ext': fmt.get('container') or 'm4a',
+                })
+
+        # Combined formats
+        for fmt in invidious_data.get('formatStreams', []):
+            if fmt.get('type', '').startswith('video/'):
+                quality = fmt.get('qualityLabel') or fmt.get('resolution') or 'unknown'
+                if quality not in seen_qualities:
+                    seen_qualities.add(quality)
+                    video_formats.append({
+                        'format_id': fmt.get('itag') or fmt.get('url'),
+                        'quality': quality,
+                        'resolution': fmt.get('resolution') or quality,
+                        'url': fmt.get('url'),
+                        'has_audio': True,
+                        'ext': fmt.get('container') or 'mp4',
+                    })
+
+        return jsonify({
+            'title': invidious_data.get('title', 'video'),
+            'duration': invidious_data.get('lengthSeconds'),
+            'thumbnail': invidious_data.get('videoThumbnails', [{}])[0].get('url', ''),
+            'uploader': invidious_data.get('author', ''),
+            'video_formats': video_formats,
+            'audio_formats': audio_formats,
+        })
+    except Exception as e:
+        return jsonify({'error': f'Failed to fetch: {str(e)}'}), 500
 
 
 @app.route('/api/info', methods=['POST'])
