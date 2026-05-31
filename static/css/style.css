@@ -612,6 +612,21 @@ a {
     color: inherit;
 }
 
+/* Allow click to pass through inner elements to the anchor */
+.blog-card .blog-image,
+.blog-card .image-overlay,
+.blog-card .blog-content,
+.blog-card .blog-meta-top,
+.blog-card .blog-tag,
+.blog-card .read-time,
+.blog-card h2,
+.blog-card p,
+.blog-card .blog-footer,
+.blog-card .blog-date,
+.blog-card .blog-arrow {
+    pointer-events: none;
+}
+
 .blog-card::before {
     content: '';
     position: absolute;
