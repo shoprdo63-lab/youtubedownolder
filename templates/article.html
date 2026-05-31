@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+{% block desc %}{{ desc }}{% endblock %}
+
+{% block content %}
+<article class="article-page">
+    <div class="article-hero">
+        <div class="article-hero-bg" style="background: {{ gradient }};">
+            <div class="article-icon">{{ icon | safe }}</div>
+        </div>
+        <div class="article-meta">
+            <span class="article-tag">{{ tag }}</span>
+            <span class="article-read-time">{{ read_time }}</span>
+        </div>
+        <h1>{{ title }}</h1>
+        <p class="article-date">עודכן: מאי 2026</p>
+    </div>
+
+    <div class="article-content">
+        {{ content | safe }}
+    </div>
+
+    <div class="article-nav">
+        <a href="/blog" class="back-btn">&#8592; חזרה לבלוג</a>
+    </div>
+</article>
+{% endblock %}
