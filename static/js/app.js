@@ -23,6 +23,13 @@ const INVIDIOUS_INSTANCES = [
     'https://iv.datura.network',
     'https://yt.artemislena.eu',
     'https://invidious.fdn.fr',
+    'https://y.com.sb',
+    'https://invidious.privacydev.net',
+    'https://iv.nboeck.de',
+    'https://iv.melmac.space',
+    'https://invidious.slipfox.xyz',
+    'https://iv.datura.network',
+    'https://iv.melmac.space',
 ];
 
 function setStatus(msg, type) {
@@ -66,21 +73,33 @@ function switchTab(tab) {
 
 async function tryInstances(path) {
     let lastError;
+    let failedInstances = [];
+
     for (const base of INVIDIOUS_INSTANCES) {
         try {
+            console.log(`Trying ${base}...`);
             const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 8000);
+            const timeout = setTimeout(() => controller.abort(), 15000);
             const response = await fetch(base + path, { signal: controller.signal });
             clearTimeout(timeout);
+
             if (response.ok) {
+                console.log(`SUCCESS: ${base}`);
                 return await response.json();
+            } else {
+                console.warn(`HTTP ${response.status} from ${base}`);
+                failedInstances.push(`${base} (HTTP ${response.status})`);
             }
         } catch (e) {
+            console.warn(`Failed ${base}:`, e.message);
+            failedInstances.push(`${base} (${e.message})`);
             lastError = e;
             continue;
         }
     }
-    throw lastError || new Error('All Invidious instances failed');
+
+    console.error('All instances failed:', failedInstances);
+    throw new Error(`All Invidious instances failed. Check browser console (F12) for details.`);
 }
 
 async function fetchVideoInfo() {
@@ -177,8 +196,8 @@ async function fetchVideoInfo() {
         videoPreview.classList.add('active');
         setStatus('', '');
     } catch (error) {
-        console.error(error);
-        setStatus('שגיאה בטעינת מידע. נסה קישור אחר או רענן את הדף.', 'error');
+        console.error('Full error:', error);
+        setStatus(`שגיאה: ${error.message}. פתח את הקונסול (F12) לפרטים.`, 'error');
     } finally {
         fetchBtn.disabled = false;
     }
