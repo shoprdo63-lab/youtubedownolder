@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}מוריד סרטוני YouTube - הורדת סרטונים באיכות גבוהה{% endblock %}</title>
+    <meta name="description" content="{% block desc %}הכלי הטוב ביותר להורדת סרטוני YouTube באיכות HD, 4K ו-8K. מהיר, בטוח וחינמי לחלוטין.{% endblock %}">
+    <meta name="keywords" content="הורדת סרטוני YouTube, מוריד YouTube, YouTube downloader, הורדת סרטונים, MP4, HD, 4K">
+    <meta name="author" content="YouTube Downloader Pro">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://yourdomain.com{{ request.path }}">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="{% block og_title %}מוריד סרטוני YouTube - הורדת סרטונים באיכות גבוהה{% endblock %}">
+    <meta property="og:description" content="{% block og_desc %}הכלי הטוב ביותר להורדת סרטוני YouTube באיכות HD, 4K ו-8K. מהיר, בטוח וחינמי לחלוטין.{% endblock %}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://yourdomain.com{{ request.path }}">
+    <meta property="og:image" content="https://yourdomain.com/static/og-image.jpg">
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{% block tw_title %}מוריד סרטוני YouTube - הורדת סרטונים באיכות גבוהה{% endblock %}">
+    <meta name="twitter:description" content="{% block tw_desc %}הכלי הטוב ביותר להורדת סרטוני YouTube באיכות HD, 4K ו-8K.{% endblock %}">
+    
+    <!-- Schema.org -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "YouTube Downloader Pro",
+      "description": "כלי חינמי להורדת סרטוני YouTube באיכות HD, 4K ו-8K",
+      "applicationCategory": "UtilityApplication",
+      "operatingSystem": "Any",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "ILS"
+      }
+    }
+    </script>
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <span class="logo-icon">YT</span>
+            <span class="logo-text">Downloader</span>
+        </div>
+        <ul class="nav-links">
+            <li><a href="/">בית</a></li>
+            <li><a href="/blog">בלוג</a></li>
+        </ul>
+    </nav>
+    
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+    
+    <footer class="site-footer">
+        <div class="footer-content">
+            <p>YouTube Downloader Pro - כלי חינמי להורדת סרטונים</p>
+            <p class="footer-note">השימוש באתר כפוף לתנאי השימוש של YouTube</p>
+        </div>
+    </footer>
+    
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
