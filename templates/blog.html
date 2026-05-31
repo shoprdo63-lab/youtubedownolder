@@ -206,4 +206,13 @@
         <a href="/" class="cta-button">לדף הבית &#8592;</a>
     </div>
 </section>
+
+<script>
+document.querySelectorAll('.blog-card').forEach(card => {
+    card.addEventListener('click', function(e) {
+        e.preventDefault();
+        alert('מאמר יגיע בקרוב!');
+    });
+});
+</script>
 {% endblock %}
