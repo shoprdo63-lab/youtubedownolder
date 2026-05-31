@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "name": "youtube-downolder",
   "routes": [
     {
       "src": "/api/(.*)",
