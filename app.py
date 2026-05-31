@@ -419,7 +419,8 @@ def extract_video_id(url):
 
 def fetch_from_invidious(video_id):
     """Fetch video info from Invidious API (server-side, no CORS issues)"""
-    last_error = None
+    import urllib.error
+    errors = []
     for base in INVIDIOUS_INSTANCES:
         try:
             req = urllib.request.Request(
@@ -431,10 +432,17 @@ def fetch_from_invidious(video_id):
             )
             with urllib.request.urlopen(req, timeout=15) as response:
                 return json.loads(response.read().decode('utf-8'))
-        except Exception as e:
-            last_error = e
+        except urllib.error.HTTPError as e:
+            error_msg = f'{base}: HTTP {e.code}'
+            errors.append(error_msg)
+            print(error_msg)
             continue
-    raise last_error or Exception('All Invidious instances failed')
+        except Exception as e:
+            error_msg = f'{base}: {str(e)}'
+            errors.append(error_msg)
+            print(error_msg)
+            continue
+    raise Exception(f'All Invidious instances failed: {"; ".join(errors)}')
 
 
 @app.route('/api/proxy/info', methods=['POST'])
